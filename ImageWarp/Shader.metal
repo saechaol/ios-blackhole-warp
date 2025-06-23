@@ -20,6 +20,10 @@ using namespace metal;
     float2 uv = position / size;
     float2 touch = touchPoint / size;
     
+    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+        return half4(0.0, 0.0, 0.0, 0.0);
+    }
+    
     float touchToPixelDistance = length(uv - touch);
     float warpFactor = warp / 40;
     
@@ -35,13 +39,14 @@ using namespace metal;
     // sample RGB at different offsets
     // create chromatic abberration effect
     half3 f = half3(
-                    layer.sample(displacePosition + inputScalingFactor * intensity).r,
-                    layer.sample(displacePosition + inputScalingFactor * 0.1).g,
-                    layer.sample(displacePosition + inputScalingFactor / 5).b
+                   layer.sample(displacePosition + inputScalingFactor * intensity).r, 
+                   layer.sample(displacePosition + inputScalingFactor * 0.1).g,
+                   layer.sample(displacePosition + inputScalingFactor / 5.0).b
                     );
     
-    // return the final color with alpha set to 1.0
-    return half4(f, 1.0);
+    // return the final color with alpha
+    half alpha = layer.sample(displacePosition).a;
+    return half4(f, alpha);
 }
 
 [[ stitchable ]] half4 light(
@@ -63,7 +68,7 @@ using namespace metal;
     // how much to push the pixel's color based on distance to touch point
     float displacementFactor = 1.0 - (touchToPixelDistance * touchToPixelDistance) * normalizedAngle * 2;
     
-    float2 displacePosition = position + position * displacementFactor * 2;
+    float2 displacePosition = position * displacementFactor;
     
     // sample RGB at offset locations
     half3 rgb = half3(
@@ -72,5 +77,5 @@ using namespace metal;
                     layer.sample(displacePosition - inputScalingFactor).b         // sample from opposing direction
                     );
     
-    return half4(rgb, 1.0);
+    return half4(rgb, 0.0);
 }

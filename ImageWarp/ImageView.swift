@@ -6,14 +6,17 @@
 //
 
 import SwiftUI
+import PhotosUI
 
 struct ImageView: View {
+    
     @Environment(\.colorScheme) var colorScheme
     
-    @State private var position = CGPoint(x: 180, y: 180)
+    @State private var selectedItem: PhotosPickerItem? = nil
+    @State private var imageData: Data? = nil
     @State private var imageSize = CGSize(width: 360, height: 360)
-    @State private var warpFactor: Double = 1
-    @State private var intensity: Double = 0.5
+    
+    @ObservedObject var motion: MotionManager
     
     var textColor: some ShapeStyle {
         if colorScheme == .dark {
@@ -25,43 +28,19 @@ struct ImageView: View {
     
     var body: some View {
         ZStack {
-            Image("WWDC")
-                .resizable()
-                .frame(width: imageSize.width, height: imageSize.height)
-                .scaledToFill()
-                .layerEffect(
-                    ShaderLibrary.warp(
-                        .float2(imageSize),
-                        .float2(position),
-                        .float(warpFactor),
-                        .float(intensity)
-                    ), maxSampleOffset: CGSize(width: 320, height: 360)
-                )
-                .gesture(
-                    DragGesture()
-                        .onChanged { value in
-                            position = value.location
-                        }
-                )
-            
+            LinearGradient.appPrimary
+                .ignoresSafeArea()
             VStack {
-                Text("Warp: \(String(format: "%.2f", warpFactor)), Intensity: \(String(format: "%.2f", intensity))")
-                    .font(.system(size: 18, design: .rounded))
-                    .foregroundStyle(textColor)
-                    .shadow(
-                        color: .black.opacity(0.4),
-                        radius: 4,
-                        x: 0,
-                        y: 2
-                    )
+                
+                if let data = imageData,
+                   let uiImage = UIImage(data: data) {
+                    WarpedImageView(uiImage: uiImage,
+                                    imageSize: imageSize,
+                                    motion: motion)
                     .padding()
-                
-                HStack {
-                    Text("Warp")
-                        .font(.system(
-                            size: 14,
-                            design: .monospaced
-                        ))
+                } else {
+                    Text("No image selected")
+                        .font(.system(size: 18, design: .rounded))
                         .foregroundStyle(textColor)
                         .shadow(
                             color: .black.opacity(0.4),
@@ -69,19 +48,16 @@ struct ImageView: View {
                             x: 0,
                             y: 2
                         )
-                        .frame(width: 80.0, alignment: .center)
-                    Slider(
-                        value: $warpFactor,
-                        in: 0...5
-                    )
+                        .padding()
                 }
                 
-                HStack {
-                    Text("Strength")
-                        .font(.system(
-                            size: 14,
-                            design: .monospaced
-                        ))
+                PhotosPicker(
+                    selection: $selectedItem,
+                    matching: .images,
+                    photoLibrary: .shared()
+                ) {
+                    Label("Select an image", systemImage: "photo.fill")
+                        .font(.system(size: 18, design: .rounded))
                         .foregroundStyle(textColor)
                         .shadow(
                             color: .black.opacity(0.4),
@@ -89,21 +65,24 @@ struct ImageView: View {
                             x: 0,
                             y: 2
                         )
-                        .frame(width: 80.0, alignment: .center)
-                    Slider(
-                        value: $intensity,
-                        in: 0...1
-                    )
+                        .padding()
                 }
+                .onChange(of: selectedItem) { oldItem, newItem in
+                    Task {
+                        if let data = try? await newItem?.loadTransferable(type: Data.self) {
+                            imageData = data
+                        }
+                    }
+                }
+                
             }
-            .offset(y: 280)
-            .padding()
+
         }
     }
     
 }
 
 #Preview {
-    ImageView()
+    ImageView(motion: MotionManager())
         .preferredColorScheme(.light)
 }

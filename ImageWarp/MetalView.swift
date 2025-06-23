@@ -8,16 +8,21 @@
 import SwiftUI
 
 struct MetalView: View {
+    @StateObject private var motion = MotionManager()
     var body: some View {
-        TabView {
-            Tab("Circle", systemImage: "circle.fill") {
-                CircleView()
+        GeometryReader { geo in
+            let size = geo.size
+            TabView {
+                Tab("Circle", systemImage: "circle.fill") {
+                    CircleView(motion: motion, size: size)
+                }
+                Tab("Picture", systemImage: "photo.fill") {
+                    ImageView(motion: motion)
+                }
             }
-            Tab("Picture", systemImage: "photo.fill") {
-                ImageView()
-            }
+            .tint(.appPrimary)
         }
-        .tint(.appPrimary)
+        .ignoresSafeArea(.all, edges: .bottom)
     }
 }
 
